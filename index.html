@@ -1,0 +1,652 @@
+<html lang="pt">
+<head>
+<title>EZCorrGraph - por Francisco Ferreira de Campos</title>
+<!--
+
+Este aplicativo foi desenvolvido por Francisco Ferreira de Campos,
+pesquisador em Geociências do Serviço Geológico do Brasil, utilizando 
+como base as bibliotecas javascript DraculaJS, Raphäel, jExcel, svgsaver e jQuery.
+
+A distribuição deste aplicativo é livre e gratuita, desde que citada a fonte.
+
+Contato: francisco.campos@cprm.gov.br
+-->
+<meta charset="UTF-8">
+    
+<link id="favicon" rel="shortcut icon" type="image/png" href="correlacao.png">
+    
+    <script src="jquery.js"></script>
+    <script src="raphael.min.js"></script>
+    <script src="dracula.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-csv/0.8.3/jquery.csv.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jexcel/1.5.0/js/jquery.jexcel.js"></script>
+    <link rel="stylesheet" href="jquery.jexcel.css" type="text/css" />
+    <script type="text/javascript" src="canvas-toBlob.js"></script>
+    <script type="text/javascript" src="FileSaver.min.js"></script>
+	<script src="browser.min.js"></script>
+
+     
+<style>
+    body {font-family: sans-serif;}
+    .tela_inteira {height: 99%; width: 100%; /*border: 2px solid*/}
+    .btn_inicio {background-color: #69a7ef; border: 3px solid #4771a2; padding: 1.5em; color: white; font-weight: bold; font-size: 1.3em; cursor:pointer; text-shadow: 1px 1px 4px black;width: 8em}
+    .btn_inicio:hover {background-color: #7692b2}
+    .btn_dentro {background-color: #c7ef6c; border: 3px solid #577217; padding: 0.3em; font-weight: bold; font-size: 1em; cursor:pointer; margin: 0.4em 0 0.4em 0}
+    .btn_dentro:hover {background-color: #9aad6d}
+    .r0,.c0 {
+        font-weight: bold;
+    }
+    input#tamanho,#tamanho1 {width: 3em}
+    input#limiar_corr{
+        font-size: 0.95em;
+        width: 3.5em
+    }
+    .copyright {
+        position: fixed;
+        bottom: 0.2em;
+        right: 0.2em;
+        left: 14em;
+        font-size: 0.6em;
+        text-align: right;
+        display: none;
+    }
+    .PNG_holder{
+        margin: 2.4em 0 1.3em 0;
+        border: 2px solid;
+        text-align: center;
+        display: none;
+        background-color: #f4f1f1;
+    }
+    .novidades{
+        font-size: small;
+        padding: 0.4em;
+        border: 0.22em dashed black;
+        border-radius: 0.5em;
+        width: 28em;
+        position: absolute;
+        top:0;
+        left: calc((100% - 28em - 0.8em - 0.44em)/2);
+        background-color: white;
+        display: none;
+    }
+    img.icone {
+        height: 1.5em;
+        vertical-align: middle;
+    }
+    .instruções {
+        padding: 1em;
+        margin-bottom: 1em;
+        border: 0.1em dashed #555555;
+        border-radius: 0.5em;
+        max-width: 66em;
+    }
+    a {
+        cursor: pointer;
+        color: blue;
+        text-decoration: underline;
+    }
+    .btn_lingua {
+        background-color: rgba(255, 255, 255, 0);
+        border: 0;
+        cursor: pointer;
+        font-weight: bold;
+        color: white;
+        /*width: 8em;*/
+    }
+    .cx_lingua {
+        background-color: #7692b2;
+        width: 18em;
+        line-height: 2.2em;
+        top: 0;
+        margin: -1em auto;
+        border-radius: 0 0 0.5em 0.5em;
+        box-shadow: 0 2px 3px #0000004f;
+        
+    }
+    .cx_logo {
+        background-color: #7692b2;
+        width: 15em;
+        line-height: 2.5em;
+        top: 0;
+        margin: 0 auto -2.25em auto;
+        border-radius: 0.5em 0.5em 0 0;
+        box-shadow: 0 -2px 3px #0000004f;
+        color: white;
+        text-shadow: 1px 1px 4px #333333;
+        
+    }
+    .modal_bg{
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.2);
+        position: fixed;
+        top: 0;
+        left:0;
+        z-index: 1;
+        display: none;
+    }
+    .modal_fg{
+        background-color: white;
+        margin: auto;
+        padding: 1em;
+    }
+    h1{padding-top: 0.5em;}
+li input {
+        width: 4em;
+    }
+    #tabela{
+        margin-top: 0.5em;
+    }
+    ul li{
+        margin: 0.4em 0;
+    }
+    h3 {
+        margin: 0;
+    }
+</style>
+<script type="text/javascript">
+var layouter, renderer;  
+    
+function desenhar() {
+if ($("#texto").val() != "") {
+    var largura = ($("#canvas").width() - $("#texto").outerWidth())*0.95;
+    var altura = ($("#texto").height() - $("#desenhar").outerHeight())*0.91;
+    var f = new Graph();
+    var dados_originais = $("#texto").val().split('\n');
+    for (var item in dados_originais) {
+        var linha = dados_originais[item].split(',');
+        if (linha[2] != undefined) {
+            f.addEdge(linha[0],linha[1], {label: linha[2], "font-size": estilo.tamanho_fonte, dasharray:estilo.estilo_linha, stroke:estilo.cor_linha, width:estilo.espessura_linha})
+        } else if (linha[1] != undefined){
+            f.addEdge(linha[0],linha[1], {"font-size": estilo.tamanho_fonte, dasharray:estilo.estilo_linha, stroke:estilo.cor_linha, width:estilo.espessura_linha})
+        }
+    }
+
+    $("#canvas").empty();
+    layouter = new Graph.Layout.Spring(f);
+    renderer = new Graph.Renderer.Raphael('canvas', f, largura, altura, estilo);
+    layouter.layout();
+    renderer.draw();
+//    saveSvgAsPng($("svg"), "diagram.png");
+}
+    }
+
+function aviso(t) {
+    window.alert(eval(traduções[lingua][27]))
+}
+
+function desenhar_jexcel() {
+    var f = new Graph();
+    var largura = $("#canvas1").width()*0.95;
+    var altura = $("#matriz_corr").height() - $("#desenhar_jexcel").height();
+    var tabela = $('#tabela').jexcel('getData', false);
+    var exibir_corr = $('#exibir_corr').prop('checked');
+    var limiar_corr = $('#limiar_corr').val(); console.log(limiar_corr);
+    var ny = tabela.length;
+    var nx = tabela[0].length;
+    if (ny > nx) {
+        if (tabela[ny-1][0] == "") {
+            console.log("Deletar linha " + ny);
+            $('#tabela').jexcel('deleteRow', ny-1);
+            desenhar_jexcel();
+        } else {aviso(tabela)}
+    } else if (ny < nx) {
+        if (tabela[0][nx-1] == "") {
+            //console.log("Deletar coluna " + nx);
+            $('#tabela').jexcel('deleteColumn', nx-1);
+            desenhar_jexcel();
+        } else {aviso(tabela)}
+    } else {
+        var i;
+        var erro = false;
+        for (i = 1; i < ny; i++) {
+            if (tabela[0][i] !== tabela[i][0]){
+                erro = true;
+                $("#0-"+i+",#"+i+"-0").css('background', '#ef6c6c')
+            } else {$("#0-"+i+",#"+i+"-0").css('background', 'white')}
+        }
+    if (erro) {
+        window.alert(traduções[lingua][28]);
+    } else {    
+    for (var y in tabela) {
+        if (y > 0) {
+            var linha = tabela[y];
+            var i;
+            for (i = 1; i < linha.length && i < y; i++) {
+                var corr = linha[i];
+                if (~corr.indexOf(',')) {
+                    //console.log(corr)
+                    corr = corr.replace(",",".");
+                }
+                if (corr >= limiar_corr /*|| corr <= limiar_corr*(-1)*/) {
+                    $("#"+i+"-"+y).css('background', '#a6ba76')
+                    var elemento1 = linha[0];
+                    var elemento2 = tabela[i][0];
+                    //console.log(elemento1, elemento2, corr)
+                    if (exibir_corr) {
+                        corr = Math.round(corr*100)/100;
+                        f.addEdge(elemento1, elemento2, {label: corr, "font-size": estilo.tamanho_fonte, dasharray:estilo.estilo_linha, stroke: estilo.cor_linha, width:estilo.espessura_linha})    
+                    } else {
+                        f.addEdge(elemento1, elemento2, {"font-size": estilo.tamanho_fonte, dasharray:estilo.estilo_linha, stroke:estilo.cor_linha, width:estilo.espessura_linha})
+                    }
+                    
+                } else {
+                    $("#"+i+"-"+y).css('background', '#ffffff')
+                }
+            }
+        }
+    }
+    document.getElementById("desenhar_jexcel").scrollIntoView();
+    $("#canvas1").empty();
+    layouter = new Graph.Layout.Spring(f);
+    renderer = new Graph.Renderer.Raphael('canvas1', f, largura, altura, estilo);
+    layouter.layout();
+    renderer.draw();
+    }
+  }
+};
+    
+function FormatarTexto(tamanho){
+    console.log(tamanho+'px')
+    $('.rotulo').css('font-size',tamanho+'px');
+}
+      
+  </script>
+ </head>
+    
+    
+<body id="body">
+    
+<div class="modal_bg">
+    <div class="modal_fg">
+        <h3 class="tx" lg="29">Configurar estilo do diagrama</h3>
+        <ul>
+            <li><tx class="tx" lg="30">Cor da linha</tx>: <input id="cor_linha" type="color"></li>
+            <li><tx class="tx" lg="31">Estilo da linha</tx>:
+                <select id="estilo_linha">
+                    <option value="" class="tx" lg="32">sólido</option>
+                    <option value="--" class="tx" lg="33">tracejado 1</option>
+                    <option value="- " class="tx" lg="40">tracejado 2</option>
+                    <option value="-" class="tx" lg="41">tracejado 3</option>
+                    <option value="." class="tx" lg="34">pontilhado 1</option>
+                    <option value=". " class="tx" lg="42">pontilhado 2</option>
+                </select>
+            </li>
+            <li><tx class="tx" lg="35">Espessura da linha</tx>: <input id="espessura_linha" type="number" value="1"></li>
+            <li><tx class="tx" lg="36">Tamanho da fonte dos fatores</tx>: <input id="tamanho_fonte" type="number" value="12"></li>
+            <li><tx class="tx" lg="37">Tamanho dos círculos</tx>: <input id="tamanho_nó" type="number" value="20"></li>
+            <li><tx class="tx" lg="38">Tamanho da fonte dos elementos</tx>: <input id="tamanho_fonte_nó" type="number" value="16"></li>
+        </ul>
+        <small class="tx" lg="39">As alterações só serão aplicadas após clicar em "Desenhar".</small><br><br>
+        <button id="set_config" onclick="$('.modal_bg').css('display','none')">OK</button>
+    </div>   
+</div>
+     
+<div id="inicio" class="tela_inteira" style="text-align: center; display: flex; background-color: #ededed">
+    <div style="position: relative; margin: auto; padding: 1em;box-shadow: 0px 0px 10px #818181;border-radius: 0.2em; background-color: white">
+    
+    <div class="cx_lingua">
+    <button class="btn_lingua" onclick="alterarLingua('pt')">PORTUGUÊS</button><span>🌐</span><button class="btn_lingua" onclick="alterarLingua('en')">ENGLISH</button><span>🌐</span><button class="btn_lingua" onclick="alterarLingua('zh')">中文</button>
+    </div>
+    
+    <h1 lg="1" class="tx">Diagrama das Associações Geradas pela Correlação</h1>
+        
+    <p lg="2" class="tx">Escolha o formato de entrada de dados:</p>
+    <button lg="3" class="btn_inicio tx" onclick="$('#inicio,#lista_pares,.copyright').toggle()">Lista de Pares</button>
+    <button lg="4" class="btn_inicio tx" onclick="$('#inicio,#matriz_corr,.copyright').toggle()">Matriz de Correlação</button>
+    <p><tx lg="5" class="tx">Desenvolvido por Francisco Ferreira de Campos (Serviço Geológico do Brasil/CPRM - SUREG/SP)</tx> <br>
+        <small lg="6" class="tx">com base nas bibliotecas DraculaJS, Raphäel, jExcel, svgsaver e jQuery.</small> <br>
+        <small lg="7" class="tx" id="versão" versão="1.1">versão 1.1</small>
+    </p>
+    <p>
+    <img class="icone" src="email.png">
+    francisco.campos@cprm.gov.br
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+    <a href="http://lattes.cnpq.br/7170689840423636" target="_blank" style="text-decoration: none;color: black"><img class="icone" src="lattes.png"> <tx class="tx" lg="8">Lattes</tx></a>
+    </p>
+    
+    <tx onmouseover="$('#creditos_tradução').css({top: 'calc(' + $('#xy').position().top + 'px - 0.62em)'});$('#creditos_tradução').show()" onmouseout="$('#creditos_tradução').hide()">
+        <small id="xy" class="tx" lg="43">Créditos de Tradução</small>
+        <div id="creditos_tradução" class="novidades">
+            <strong class="tx" lg="43">Créditos de Tradução</strong><br>
+            Português/English - Francisco F. de Campos;<br>
+            中文 (Chinese) - Xu Ming (China Geological Survey/中国地质调查局);
+        </div>
+    </tx>
+
+    
+    <br><br>
+        
+    <small><span class="tx" lg="44">Citar como:</span> CAMPOS, F.F. 2018. EZCorrGraph. Available on: https://ezcorrgraph.firebaseapp.com</small> 
+        
+    <div class="cx_logo">
+        <h2>EZCorrGraph</h2>
+    </div>
+        
+    </div>
+</div>
+     
+<div id="lista_pares" class="tela_inteira" style="display: none">
+     <textarea id="texto" style="height: 100%; float: left; margin-right: 0.6em; font-family: sans-serif; resize: none" placeholder="Coloque aqui os pares de elementos correlacionados separados por vírgula, cada par em uma linha. Caso deseje exibir os rótulos com os valores das correlações, coloque-os em frente ao par separados por vírgula. Veja os exemplos.&#10&#10Ex. 1:&#10;&#10;Ca,Mg&#10;Ca,Sr&#10;U,Th&#10;La,Ce &#10&#10Ex. 2:&#10;&#10;Ca,Mg,0.78&#10;Ca,Sr,0.85&#10;U,Th,0.98&#10;La,Ce,0.95" class="tx" lg="9"></textarea>
+     <button class="btn_dentro tx" lg="10" id="desenhar1" onclick="desenhar();">DESENHAR</button>
+    <button class="btn_dentro tx" lg="11" onclick="svgsaver.asPng(document.querySelector('#canvas svg'))">SALVAR IMAGEM</button>
+    <button class="btn_dentro tx" lg="45" onclick="svgsaver.asSvg(document.querySelector('#canvas svg'))">SALVAR SVG</button>
+    <button class="btn_dentro tx" lg="12" onclick="$('#inicio,#lista_pares,.copyright').toggle()">VOLTAR</button>
+<!--    <input id="tamanho" type="number" min="1" step="1" value="12"> <button onclick="FormatarTexto($('#tamanho').val())">OK</button>-->
+    &nbsp;&nbsp;&nbsp;<a class="tx" lg="29" onclick="$('.modal_bg').css('display','flex')">Configurar estilo do diagrama</a>
+    &nbsp;&nbsp;&nbsp;<a class="tx" lg="13" onclick="$('#texto').val(ex_lista_pares)">Ver exemplo</a>
+    <br><tx class="tx" lg="14">Clique novamente em desenhar para ver outros layouts e cores. Os círculos podem ser arrastados.</tx>
+
+    
+     <div id="canvas"></div>
+
+
+</div>
+     
+<div id="matriz_corr" class="tela_inteira" style="display: none">
+    <div class="instruções">
+    <b class="tx" lg="16">Instruções</b>
+    <li class="tx" lg="17">Copie e cole a matriz de correlação a partir de uma tabela Excel ou outro software ou então adicione um arquivo CSV especificando o separador;</li>
+    <li class="tx" lg="18">A matriz pode ser completa ou só a metade inferior;</li>
+    <li class="tx" lg="19">A coluna A e a linha 1 devem conter o nome dos elementos;</li>
+    <li class="tx" lg="20">A tabela abaixo redimensiona automaticamente ao colar os dados;</li>
+    <em class="tx" lg="21">IMPORTANTE: Ao copiar dados do Excel a primeira célula (A1) não pode estar vazia pois senão os dados são colados deslocados.</em>
+    <br><br><a onclick="ex_matriz();" class="tx" lg="13">Ver exemplo</a> 
+    </div>
+    
+    <input type="file" id="fileElem" style="display:none" onchange="handleFiles(this.files)">
+    <a id="fileSelect" class="tx" lg="22">Adicionar arquivo CSV</a> <tx class="tx" lg="23">Separador:</tx> <input id="separador" type="text" value=";" size="1" style="text-align: center; font-weight: bold"> <span id="arquivo_selecionado"></span>
+    
+    <tabela>
+    <div id="tabela"></div>
+    </tabela>
+    
+    <button class="btn_dentro tx" lg="10" id="desenhar_jexcel" onclick="desenhar_jexcel();">DESENHAR</button>
+    <button class="btn_dentro tx" lg="24" id="limpar_jexcel" onclick="$('#tabela').jexcel('destroy');$('#tabela').empty();init_tabela([['-','',''],[],[]]);">LIMPAR TABELA</button>
+    <button class="btn_dentro tx" lg="11" onclick="svgsaver.asPng(document.querySelector('#canvas1 svg'))">SALVAR IMAGEM</button>
+    <button class="btn_dentro tx" lg="45" onclick="svgsaver.asSvg(document.querySelector('#canvas1 svg'))">SALVAR SVG</button>
+    <button class="btn_dentro tx" lg="12" onclick="$('#inicio,#matriz_corr,.copyright').toggle()">VOLTAR</button>
+      || <tx class="tx" lg="25">Valor mínimo de correlação</tx> (0 - 1) = <input id="limiar_corr" type="number" value="0.70" max="1" min="0" step="0.01"> ||
+    <input id="exibir_corr" type="checkbox" checked="true"> <tx class="tx" lg="26">Exibir fatores de correlação</tx> || <a class="tx" lg="29" onclick="$('.modal_bg').css('display','flex')">Configurar estilo do diagrama</a>
+    <br><tx class="tx" lg="14">Clique novamente em desenhar para ver outros layouts e cores. Os círculos podem ser arrastados.</tx><br>
+
+     <div id="canvas1"></div>
+</div>
+
+<div class="copyright"><tx class="tx" lg="5">Desenvolvido por Francisco Ferreira de Campos (Serviço Geológico do Brasil/CPRM - SUREG/SP)</tx> <tx class="tx" lg="6">com base nas bibliotecas DraculaJS, Raphäel, jExcel, svgsaver e jQuery.</tx></div>
+       
+<script type="text/javascript">
+
+    
+    
+//Dados exemplos
+var ex_lista_pares =     "Be,Al,0.98\nCs,Al,0.56\nCs,Be,0.78\nLa,Ce,0.74\nLi,Al,0.85\nLi,Be,0.63\nLi,Cs,0.26\nMg,Co,0.87\nMg,Cr,0.99"  
+var ex_lista_matriz = [["-", "Ag", "Al", "As", "Ba", "Be", "Bi", "Ca", "Cd", "Ce", "Co", "Cr", "Cs", "Cu", "Fe", "Ga", "Ge", "Hf", "Hg", "In", "K", "La", "Li", "Mg", "Mn", "Mo", "Na", "Nb", "Ni", "P", "Pb", "Rb"],["Ag", "1.000", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""],["Al", "-0.029", "1.000", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""],["As", "-0.035", "0.526", "1.000", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""],["Ba", "-0.026", "0.665", "0.556", "1.000", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""],["Be", "-0.041", "0.815", "0.556", "0.500", "1.000", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""],["Bi", "-0.046", "0.253", "0.101", "0.103", "0.301", "1.000", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""],["Ca", "-0.009", "0.444", "0.153", "0.191", "0.328", "0.165", "1.000", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""],["Cd", "-0.032", "0.105", "0.069", "0.134", "0.136", "0.068", "0.046", "1.000", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""],["Ce", "-0.053", "0.307", "0.221", "0.322", "0.200", "0.084", "0.267", "0.053", "1.000", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""],["Co", "0.037", "0.698", "0.664", "0.696", "0.640", "0.230", "0.373", "0.098", "0.380", "1.000", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""],["Cr", "0.059", "0.474", "0.237", "0.475", "0.245", "0.134", "0.335", "0.106", "0.352", "0.669", "1.000", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""],["Cs", "-0.007", "0.878", "0.526", "0.438", "0.879", "0.271", "0.464", "0.076", "0.207", "0.600", "0.249", "1.000", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""],["Cu", "-0.013", "0.210", "0.140", "0.247", "0.059", "0.098", "0.287", "-0.049", "0.167", "0.396", "0.343", "0.059", "1.000", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""],["Fe", "-0.012", "0.671", "0.472", "0.503", "0.603", "0.209", "0.332", "0.159", "0.277", "0.630", "0.545", "0.573", "0.110", "1.000", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""],["Ga", "-0.011", "0.655", "0.339", "0.535", "0.601", "0.134", "0.372", "0.267", "0.492", "0.612", "0.573", "0.523", "0.184", "0.630", "1.000", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""],["Ge", "-0.018", "-0.023", "-0.001", "0.113", "0.068", "0.014", "-0.011", "0.025", "0.303", "0.111", "0.065", "-0.030", "0.112", "0.148", "0.248", "1.000", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""],["Hf", "-0.037", "-0.082", "-0.123", "-0.047", "-0.050", "0.021", "-0.050", "0.015", "0.136", "-0.140", "0.013", "-0.098", "-0.066", "0.158", "0.059", "0.307", "1.000", "", "", "", "", "", "", "", "", "", "", "", "", "", ""],["Hg", "-0.026", "0.193", "0.102", "0.031", "0.231", "0.232", "0.171", "-0.029", "0.002", "0.108", "-0.025", "0.232", "-0.074", "0.189", "0.003", "0.090", "-0.070", "1.000", "", "", "", "", "", "", "", "", "", "", "", "", ""],["In", "-0.022", "0.532", "0.270", "0.289", "0.650", "0.086", "0.150", "0.126", "0.137", "0.276", "0.129", "0.586", "-0.035", "0.421", "0.545", "0.188", "-0.007", "0.048", "1.000", "", "", "", "", "", "", "", "", "", "", "", ""],["K", "-0.061", "0.330", "-0.025", "0.291", "0.079", "0.059", "-0.016", "0.011", "-0.058", "-0.073", "0.054", "0.156", "-0.121", "0.246", "0.044", "-0.069", "0.224", "0.011", "0.005", "1.000", "", "", "", "", "", "", "", "", "", "", ""],["La", "-0.055", "0.266", "0.142", "0.243", "0.140", "0.084", "0.285", "0.034", "0.980", "0.319", "0.359", "0.162", "0.177", "0.237", "0.452", "0.276", "0.126", "-0.012", "0.098", "-0.064", "1.000", "", "", "", "", "", "", "", "", "", ""],["Li", "-0.008", "0.922", "0.555", "0.620", "0.836", "0.264", "0.516", "0.131", "0.357", "0.780", "0.524", "0.871", "0.258", "0.626", "0.694", "0.030", "-0.147", "0.207", "0.518", "0.030", "0.320", "1.000", "", "", "", "", "", "", "", "", ""],["Mg", "0.087", "0.699", "0.358", "0.455", "0.573", "0.278", "0.610", "0.094", "0.280", "0.776", "0.743", "0.622", "0.420", "0.561", "0.566", "-0.034", "-0.138", "0.109", "0.304", "-0.030", "0.273", "0.794", "1.000", "", "", "", "", "", "", "", ""],["Mn", "-0.025", "0.561", "0.440", "0.739", "0.496", "0.130", "0.342", "0.147", "0.501", "0.699", "0.454", "0.400", "0.209", "0.584", "0.617", "0.261", "0.144", "0.103", "0.295", "0.050", "0.453", "0.598", "0.466", "1.000", "", "", "", "", "", "", ""],["Mo", "0.030", "0.256", "0.241", "0.412", "0.227", "0.126", "-0.014", "0.118", "0.170", "0.360", "0.469", "0.130", "0.012", "0.436", "0.518", "0.321", "0.104", "-0.013", "0.246", "0.044", "0.129", "0.262", "0.177", "0.402", "1.000", "", "", "", "", "", ""],["Na", "-0.017", "0.352", "0.014", "0.408", "0.005", "0.184", "0.114", "-0.014", "0.202", "0.117", "0.334", "0.066", "0.084", "0.301", "0.179", "-0.013", "0.060", "0.017", "-0.056", "0.730", "0.219", "0.141", "0.147", "0.301", "0.226", "1.000", "", "", "", "", ""],["Nb", "-0.052", "0.046", "-0.091", "-0.036", "0.142", "0.163", "0.100", "0.081", "0.043", "-0.072", "0.019", "0.099", "-0.001", "0.214", "0.184", "0.216", "0.404", "-0.046", "0.255", "0.104", "0.041", "0.022", "0.032", "0.149", "0.153", "0.035", "1.000", "", "", "", ""],["Ni", "0.118", "0.671", "0.346", "0.579", "0.505", "0.287", "0.405", "0.103", "0.295", "0.816", "0.852", "0.489", "0.367", "0.595", "0.584", "0.054", "-0.101", "0.031", "0.198", "0.100", "0.285", "0.706", "0.852", "0.526", "0.408", "0.316", "-0.022", "1.000", "", "", ""],["P", "-0.066", "0.526", "0.421", "0.384", "0.400", "0.190", "0.530", "0.089", "0.763", "0.589", "0.518", "0.444", "0.311", "0.473", "0.562", "0.169", "0.008", "0.032", "0.282", "-0.073", "0.759", "0.620", "0.605", "0.553", "0.196", "0.176", "0.077", "0.520", "1.000", "", ""],["Pb", "-0.019", "0.589", "0.524", "0.770", "0.541", "0.209", "0.179", "0.139", "0.378", "0.653", "0.511", "0.394", "0.156", "0.580", "0.600", "0.187", "0.064", "0.138", "0.357", "0.095", "0.308", "0.613", "0.457", "0.762", "0.522", "0.328", "0.080", "0.551", "0.453", "1.000", ""],["Rb", "-0.058", "0.622", "0.243", "0.365", "0.489", "0.238", "0.231", "0.046", "0.048", "0.218", "0.070", "0.608", "-0.146", "0.391", "0.130", "-0.083", "0.055", "0.185", "0.223", "0.775", "0.027", "0.420", "0.274", "0.189", "-0.068", "0.521", "0.058", "0.289", "0.169", "0.202", "1.000"],["", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""]]
+</script> 
+
+<script type="text/javascript">
+var traduções = {
+    pt: {
+        1:"Diagrama das Associações Geradas pela Correlação",
+        2:"Escolha o formato de entrada de dados:",
+        3:"Lista de Pares",
+        4:"Matriz de Correlação",
+        5:"Desenvolvido por Francisco Ferreira de Campos (Serviço Geológico do Brasil/CPRM - SUREG/SP)",
+        6:"com base nas bibliotecas DraculaJS, Raphäel, jExcel, svgsaver e jQuery.",
+        7:"versão 1.1",
+        8:"Lattes",
+        9: {
+            attr: "placeholder",
+            texto: "Coloque aqui os pares de elementos correlacionados separados por vírgula, cada par em uma linha. Caso deseje exibir os rótulos com os valores das correlações, coloque-os em frente ao par separados por vírgula. Veja os exemplos.\n\nEx. 1:\n\nCa,Mg\nCa,Sr\nU,Th\nLa,Ce\n\nEx. 2:\n\nCa,Mg,0.78\nCa,Sr,0.85\nU,Th,0.98\nLa,Ce,0.95"
+        },
+        10:"DESENHAR",
+        11:"SALVAR IMAGEM (PNG)",
+        12:"VOLTAR",
+        13:"Ver exemplo",
+        14:"Clique novamente em desenhar para ver outros layouts e cores. Os círculos podem ser arrastados.",
+        15:'Imagem PNG gerada, clique com o botão direito e escolha "Salvar imagem como..."',
+        16:"Instruções",
+        17:"Copie e cole a matriz de correlação a partir de uma tabela Excel ou outro software ou então adicione um arquivo CSV especificando o separador;",
+        18:"A matriz pode ser completa ou só a metade inferior;",
+        19:"A coluna A e a linha 1 devem conter o nome dos elementos;",
+        20:"A tabela abaixo redimensiona automaticamente ao colar os dados;",
+        21:"IMPORTANTE: Ao copiar dados do Excel a primeira célula (A1) não pode estar vazia pois senão os dados são colados deslocados.",
+        22:"Adicionar arquivo CSV",
+        23:"Separador:",
+        24:"LIMPAR TABELA",
+        25:"Valor mínimo de correlação",
+        26:"Exibir fatores de correlação",
+        27:'"Sua matriz de correlação possui "+ t.length +" linhas e "+ t[0].length +" colunas. Uma matriz de correlação correta necessariamente é quadrada, ou seja, possui o mesmo número de linhas e colunas. Verifique sua matriz de correlação e tente novamente."',
+        28:"Os elementos que serão assinalados em vermelho após clicar em OK nesta janela precisam ser coincidentes em uma matriz de correlação correta.",
+        29:"Configurar estilo do diagrama",
+        30:"Cor da linha",
+        31:"Estilo da linha",
+        32:"sólido",
+        33:"tracejado 1",
+        34:"pontilhado 1",
+        35:"Espessura da linha",
+        36:"Tamanho da fonte dos fatores",
+        37:"Tamanho dos círculos",
+        38:"Tamanho da fonte dos elementos",
+        39:'As alterações só serão aplicadas após clicar em "Desenhar".',
+        40:"tracejado 2",
+        41:"tracejado 3",
+        42:"pontilhado 2",
+        43:"Créditos da Tradução",
+        44:"Citar como:",
+        45:"SALVAR SVG",
+    },
+    en: {
+        1:"Graph of Associations Generated by Correlations",
+        2:"Choose the input method:",
+        3:"List of Pairs",
+        4:"Correlation Matrix",
+        5:"Developed by Francisco Ferreira de Campos (Geological Survey of Brazil)",
+        6:"based on the libraries DraculaJS, Raphäel, jExcel, svgsaver and jQuery.",
+        7:"version 1.1",
+        8:"Curriculum Vitae",
+        9: {
+            attr: "placeholder",
+            texto: "Place here the pairs of correlated elements separated by comma, each pair on a line. If you wish to show the labels with the correlated values, place the values in front of the pair, separated by comma. See the examples below.\n\nEx. 1:\n\nCa,Mg\nCa,Sr\nU,Th\nLa,Ce\n\nEx. 2:\n\nCa,Mg,0.78\nCa,Sr,0.85\nU,Th,0.98\nLa,Ce,0.95"
+        },
+        10:"DRAW",
+        11:"SAVE IMAGE (PNG)",
+        12:"BACK",
+        13:"See example",
+        14:"Click again in draw to obtain other layouts and colors. The circles can be dragged.",
+        15:'PNG image generated, right-click on the image and choose "Save image as..."',
+        16:"Instructions",
+        17:"Copy and paste a correlation matrix from an Excel table (or from other software) or add a CSV file specifying the separator;",
+        18:"The matrix can be complete or just the bottom half;",
+        19:"Column A and row 1 should contain the name of the elements;",
+        20:"The table resizes automatically when you paste data;",
+        21:"IMPORTANT: When copying data from Excel, the first cell (A1) cannot be empty or else the data is pasted with an offset.",
+        22:"Add CSV file",
+        23:"Separator:",
+        24:"CLEAR TABLE",
+        25:"Minimum correlation value",
+        26:"Show correlation factors",
+        27:'"Your correlation matrix has "+ t.length +" rows and "+ t[0].length +" columns. A correct correlation matrix is necessarily square, that is, has the same number of rows and columns. Please verify your correlation matrix and try again."',
+        28:"The elements that will be signaled in red after clicking OK on this window need to be coincidental in a correct correlation matrix.",
+        29:"Graph style settings",
+        30:"Line color",
+        31:"Line style",
+        32:"solid",
+        33:"dashed 1",
+        34:"dotted 1",
+        35:"Line thickness",
+        36:"Factors font size",
+        37:"Circle size",
+        38:"Elements font size",
+        39:'Changes will only be applied after clicking "Draw".',
+        40:"dashed 2",
+        41:"dashed 3",
+        42:"dotted 2",
+        43:"Translation Credits",
+        44:"Cite as:",
+        45:"SAVE VECTOR (SVG)",
+    },
+    zh: {
+        1:"相关产生的关联图",
+        2:"选择输入法",
+        3:"对列表",
+        4:"相关矩阵",
+        5:"由Francisco Ferreira de Campos开发（巴西地质调查局）",
+        6:"基于图书馆DraculaJS, Raphäel, jExcel, svgsaver以及 jQuery",
+        7:"1.1版",
+        8:"个人简历",
+        9: {
+            attr: "placeholder",
+            texto: "在这里放置以逗号分隔的相关元素对，每一对都在一条线上。如果您希望显示带有相关值的标签，将值放在相关元素对前面，用逗号分隔。请参阅以下示例。\n\n例1:\n\nCa,Mg\nCa,Sr\nU,Th\nLa,Ce\n\n例2:\n\nCa,Mg,0.78\nCa,Sr,0.85\nU,Th,0.98\nLa,Ce,0.95"
+        },
+        10:"画",
+        11:"保存图片(PNG)",
+        12:"后退",
+        13:"见示例",
+        14:"在绘图中再次单击以获取其他布局和颜色。可以拖动圆圈。", 
+        15:'生成的PNG图像，右键单击图像并选择“将图片保存为…”', 
+        16:"指令",
+        17:"从Excel表复制粘贴相关矩阵（或从其他软件）或添加一个指定分隔符的CSV文件", 
+        18:"矩阵可以是完整的或者是下半部分",  
+        19:"A列和第一行应该包含元素的名称", 
+        20:"当你粘贴数据时，表格会自动调整", 
+        21:"重要的：当从Excel中复制数据时，第一个单元格（A1）不能是空的，否则数据会被粘贴到一个偏移量中", 
+        22:"添加CSV文件",
+        23:"分隔符：",
+        24:"确认清除",
+        25:"最小相关值",
+        26:"显示相关因素",
+        27:'"你的相关矩阵 "+ t.length +" 行和 "+ t[0].length +" 列。一个正确的相关矩阵必然是方形的，即有相同数量的行和列。请验证你的相关矩阵，然后再试一次。"',
+        28:"在这个窗口点击OK之后，红色表示的元素需要在一个正确的相关矩阵中是一致的。", 
+        29:"图样式设置",
+        30:"线条颜色",
+        31:"线型",
+        32:"固体",
+        33:"虚线1",
+        34:"点1",
+        35:"线的粗细",
+        36:"字体大小的因素",
+        37:"循环范围",
+        38:"元素的字体大小",
+        39:'只在点击“绘制”后才会进行更改', 
+        40:"虚线2",
+        41:"虚线3",
+        42:"点2",
+        43:"翻译学分",
+        44:"引用为：",
+        45:"SAVE VECTOR (SVG)",
+    }
+}
+</script>    
+
+<script type="text/javascript">    
+var lingua = (window.navigator.userLanguage || window.navigator.language).split("-")[0];
+switch (lingua) {
+    case 'pt':
+        break;
+    case 'zh':
+        break;
+    default:
+        lingua = 'en';
+              }
+alterarLingua(lingua);
+    
+var estilo = {
+    cor_linha: "#000",
+    estilo_linha: "",
+    espessura_linha: 1,
+    tamanho_fonte: "12px",
+    tamanho_nó: 20,
+    tamanho_fonte_nó: "16px"
+}
+
+$("#set_config").click(function(){
+    estilo.cor_linha = $("#cor_linha").val();
+    estilo.estilo_linha = $("#estilo_linha").val();
+    estilo.espessura_linha = $("#espessura_linha").val();
+    estilo.tamanho_fonte = $("#tamanho_fonte").val() + "px";
+    estilo.tamanho_nó = $("#tamanho_nó").val();
+    estilo.tamanho_fonte_nó = $("#tamanho_fonte_nó").val() + "px";
+    $('.modal_bg').css('display','none');
+})
+
+    
+function init_tabela(dados) {
+    $('#tabela').jexcel({
+        data: dados,
+        colWidths: [ 50, 50, 50 ],
+        minSpareRows: 0,
+    });
+    
+$('#tabela').jexcel('updateSettings', {
+    cells: function (cell, col, row) {
+        if (row == 0 && col == 0) {
+            $(cell).addClass('readonly');
+        }
+    }
+});
+}
+
+function ex_matriz() {
+    $('#tabela').remove();
+    $('tabela').append('<div id="tabela"></div>');
+    var temp = $.extend(true, [], ex_lista_matriz);
+    init_tabela(temp);
+}
+
+init_tabela([['-','',''],[],[]]);
+    
+//$.get("https://script.google.com/macros/s/AKfycbzgzlFn5IrAMqFgLv2aFzqOqmLAnLTmMUxOw7Y4Cohn7vzx8b1W/exec?ID=" + "TesteFrancisco")
+    
+window.URL = window.URL || window.webkitURL;
+
+var fileSelect = document.getElementById("fileSelect"),
+    fileElem = document.getElementById("fileElem"),
+    fileList = document.getElementById("fileList");
+
+fileSelect.addEventListener("click", function (e) {
+  if (fileElem) {
+    fileElem.click();
+  }
+  e.preventDefault();
+}, false);
+
+function handleFiles(files) {
+  if (files.length) {
+      $("#arquivo_selecionado").html(files[0].name);
+      $.csv.defaults.separator = $("#separador").val();
+      var csv_file = window.URL.createObjectURL(files[0]);
+      $('#tabela').jexcel({
+        csv: csv_file,
+        csvHeaders:false,
+      })
+    $("#fileElem").val("");
+  }
+}
+   
+    
+function alterarLingua(lingua_esc) {
+    lingua = lingua_esc
+    $("html").attr('lang',lingua)
+    $(".tx").each(function (index) {
+        var lg = $(this).attr("lg")
+        var texto = traduções[lingua][lg]
+        if (typeof texto === "string") {
+            $(this).html(texto)    
+        } else {
+            $(this).attr(texto.attr,texto.texto)
+        }
+        console.log(lg + ": " + traduções[lingua][lg])
+    });
+}
+
+var svgsaver = new SvgSaver();
+
+
+
+
+</script>
+    
+    <script src="https://firebasestorage.googleapis.com/v0/b/testeprojeto-ed49e.appspot.com/o/novidades.js?alt=media&token=a4f253a7-442d-4765-a39b-7856805c170a"></script>
+ </body>
+</html>
